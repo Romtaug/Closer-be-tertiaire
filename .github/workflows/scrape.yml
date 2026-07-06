@@ -1,4 +1,4 @@
-name: annuaire-be
+name: base-be-tertiaire
 
 on:
   workflow_dispatch:
@@ -8,17 +8,18 @@ on:
         default: "1905"
         required: true
       scan_ids:
-        description: "Fallback scan IDs 'START END' (laisser vide pour la recherche normale)"
+        description: "Fallback scan IDs 'START END' (laisser vide sinon)"
         default: ""
         required: false
-  # decommente pour un refresh mensuel automatique (1er du mois, 6h UTC)
-  # schedule:
-  #   - cron: "0 6 1 * *"
+      skip_enrich:
+        description: "true = sans enrichissement SIRENE/BODACC/sites"
+        default: "false"
+        required: false
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 340
     steps:
       - uses: actions/checkout@v4
 
@@ -29,21 +30,26 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
-      - name: Run scraper
+      - name: Run pipeline
         run: |
+          ARGS="--quals ${{ github.event.inputs.quals }}"
           if [ -n "${{ github.event.inputs.scan_ids }}" ]; then
-            python annuaire_be_v2.py --quals ${{ github.event.inputs.quals }} --scan-ids ${{ github.event.inputs.scan_ids }}
-          else
-            python annuaire_be_v2.py --quals ${{ github.event.inputs.quals }}
+            ARGS="$ARGS --scan-ids ${{ github.event.inputs.scan_ids }}"
           fi
+          if [ "${{ github.event.inputs.skip_enrich }}" = "true" ]; then
+            ARGS="$ARGS --skip-enrich"
+          fi
+          python annuaire_be_v2.py $ARGS
 
-      - name: Upload CSVs
+      - name: Upload resultats
         uses: actions/upload-artifact@v4
         with:
-          name: base-be-${{ github.run_number }}
+          name: base-be-tertiaire-${{ github.run_number }}
           path: |
+            base_be_tertiaire.xlsx
             base_be_max_national.csv
             base_be_max_aura.csv
             base_be_max_69.csv
+            run_summary.json
           if-no-files-found: warn
           retention-days: 90
