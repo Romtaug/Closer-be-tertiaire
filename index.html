@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base BE - Décret Tertiaire Closer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@10..48,500;10..48,700;10..48,800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#EEF2F6; --ink2:#FFFFFF; --ink3:#F1F5F9;
+    --acc:#0E8E73; --acc2:#0B7C64; --sec:#C2691F; --light:#1B2A37;
+    --muted:#5B6B7B; --line:#E3E9EF; --warn:#9A7B0A;
+    --disp:"Bricolage Grotesque",sans-serif; --body:"Inter",sans-serif; --mono:"Space Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--ink);color:var(--light);font-family:var(--body);line-height:1.5;padding:18px;
+    background-image:radial-gradient(900px 500px at 85% -10%,rgba(70,194,160,.10),transparent),radial-gradient(700px 500px at 0% 110%,rgba(224,138,76,.08),transparent);}
+  .wrap{max-width:1180px;margin:0 auto}
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .brand{font-family:var(--disp);font-weight:800;font-size:1.25rem;letter-spacing:-.5px}
+  .brand span{color:var(--acc)}
+  .hint{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+  .card{background:var(--ink2);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+  .drop{border:2px dashed var(--line);border-radius:14px;padding:26px;text-align:center;cursor:pointer;transition:border-color .15s ease,background .15s ease}
+  .drop.on,.drop:hover{border-color:var(--acc);background:rgba(14,142,115,.05)}
+  .drop b{font-family:var(--disp)}
+  .drop input{display:none}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+  .stat{background:var(--ink2);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .stat .k{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+  .stat .v{font-family:var(--disp);font-weight:800;font-size:1.5rem;margin-top:2px}
+  .stat .v small{font-size:.85rem;color:var(--muted);font-weight:500}
+  .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .filters input[type=text],.filters select{background:var(--ink3);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-family:var(--body);font-size:.86rem;color:var(--light);outline:none;min-width:130px}
+  .filters input[type=text]{flex:1;min-width:200px}
+  .filters input:focus,.filters select:focus{border-color:var(--acc)}
+  .chk{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:var(--muted);cursor:pointer;user-select:none}
+  .btn{border:none;border-radius:12px;padding:0 18px;font-family:var(--body);font-weight:700;font-size:.9rem;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;text-decoration:none;transition:transform .12s ease,filter .12s ease;min-height:44px;justify-content:center}
+  .btn:hover{transform:translateY(-1px);filter:brightness(1.06)}
+  .btn:focus-visible{outline:3px solid var(--acc2);outline-offset:2px}
+  .btn.primary{background:var(--acc);color:#fff}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--light)}
+  .btn.mailbtn{background:var(--sec);color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  thead th{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap}
+  thead th:hover{color:var(--acc)}
+  tbody td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr{cursor:pointer;transition:background .1s ease}
+  tbody tr:hover{background:rgba(14,142,115,.06)}
+  tbody tr.sel{background:rgba(14,142,115,.12)}
+  .tier{font-size:.78rem;white-space:nowrap}
+  .pill{display:inline-block;background:var(--ink3);border:1px solid var(--line);border-radius:99px;padding:1px 9px;font-family:var(--mono);font-size:.68rem;margin:1px 2px 1px 0}
+  .pill.q1905{border-color:var(--acc);color:var(--acc2)}
+  .empty{color:var(--muted);text-align:center;padding:30px;font-family:var(--mono);font-size:.8rem}
+  .split{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start}
+  @media(max-width:920px){.split{grid-template-columns:1fr}}
+  .fiche h2{font-family:var(--disp);font-weight:800;font-size:1.3rem;letter-spacing:-.4px;margin-bottom:2px}
+  .fiche .sub{font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-bottom:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-bottom:14px}
+  .fld .k{font-family:var(--mono);font-size:.64rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .fld .v{font-size:.88rem;word-break:break-word}
+  .fld .v a{color:var(--acc);text-decoration:none}
+  .mailform label{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:12px;font-family:var(--mono)}
+  .mailform input,.mailform textarea{width:100%;margin-top:5px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-family:var(--body);font-size:.85rem;color:var(--light);outline:none}
+  .mailform textarea{min-height:230px;resize:vertical;line-height:1.55}
+  .mailform input:focus,.mailform textarea:focus{border-color:var(--acc)}
+  .rowbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--light);color:#fff;border-radius:10px;padding:10px 18px;font-size:.85rem;opacity:0;pointer-events:none;transition:opacity .2s ease}
+  .toast.on{opacity:1}
+  .count{font-family:var(--mono);font-size:.72rem;color:var(--muted);margin:8px 2px}
+  .tblwrap{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:12px}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="brand">Base<span>BE</span> · Décret Tertiaire</div>
+  <div class="hint">charge base_be_max_national.csv → filtre → clique une ligne → envoie</div>
+</header>
+
+<div class="card">
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".csv">
+    <b>Glisse ton CSV ici</b> ou clique pour choisir<br>
+    <span class="hint">colonnes attendues : nom, email, telephone, site, dirigeant, adresse, code_postal, ville, departement, siren, siret, naf, forme_juridique, capital, ca, effectif, assurances, qualifications, url_fiche</span>
+  </label>
+</div>
+
+<div class="stats" id="stats" hidden>
+  <div class="stat"><div class="k">Bureaux d'études</div><div class="v" id="sTot">0</div></div>
+  <div class="stat"><div class="k">Avec email</div><div class="v" id="sMail">0 <small></small></div></div>
+  <div class="stat"><div class="k">Avec téléphone</div><div class="v" id="sTel">0</div></div>
+  <div class="stat"><div class="k">🔥 Chauds</div><div class="v" id="sHot">0</div></div>
+  <div class="stat"><div class="k">AURA</div><div class="v" id="sAura">0</div></div>
+  <div class="stat"><div class="k">Rhône 69</div><div class="v" id="s69">0</div></div>
+</div>
+
+<div class="card" id="filterCard" hidden>
+  <div class="filters">
+    <input type="text" id="q" placeholder="Recherche nom, ville, dirigeant, NAF...">
+    <select id="fDep"><option value="">Tous départements</option></select>
+    <select id="fQual"><option value="">Toutes qualifs</option></select>
+    <select id="fTier">
+      <option value="">Tous tiers</option>
+      <option>🔥 Chaud</option><option>🟠 Tiède</option>
+      <option>🔵 À qualifier</option><option>⚪ Hors cible</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="fMail"> email dispo</label>
+    <button class="btn ghost" id="exportBtn">Exporter la sélection CSV</button>
+  </div>
+  <div class="count" id="count"></div>
+  <div class="tblwrap">
+    <table>
+      <thead><tr>
+        <th data-s="tier">Tier</th><th data-s="nom">Nom</th><th data-s="ville">Ville</th>
+        <th data-s="departement">Dép</th><th data-s="dirigeant">Dirigeant</th>
+        <th data-s="effectif">Eff.</th><th data-s="qualifications">Qualifs</th><th data-s="email">Email</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="empty" id="emptyMsg" hidden>Aucun résultat avec ces filtres.</div>
+</div>
+
+<div class="split" id="ficheZone" hidden>
+  <div class="card fiche" id="fiche"></div>
+  <div class="card mailform" id="mail">
+    <label>Objet <input type="text" id="mSubj"></label>
+    <label>Message <textarea id="mBody"></textarea></label>
+    <div class="rowbtns">
+      <a class="btn mailbtn" id="mSend" href="#">Ouvrir dans la messagerie</a>
+      <button class="btn ghost" id="mCopy">Copier le message</button>
+    </div>
+    <p class="hint" style="margin-top:10px">Rappel légal : mention d'origine (annuaire public OPQIBI) + lien de désinscription dans l'envoi Brevo. Opt-out B2B (L34-5 CPCE).</p>
+  </div>
+</div>
+
+</div>
+<div class="toast" id="toast">Copié ✓</div>
+
+<script>
+"use strict";
+let DATA=[], VIEW=[], SORT={k:"tier",dir:1}, SEL=null;
+const AURA=new Set(["01","03","07","15","26","38","42","43","63","69","73","74"]);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---------- CSV parser (gère guillemets et virgules internes) ---------- */
+function parseCSV(text){
+  const rows=[];let row=[],cur="",inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else inQ=false; }
+      else cur+=c;
+    }else{
+      if(c==='"')inQ=true;
+      else if(c===','){row.push(cur);cur="";}
+      else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n')i++; row.push(cur);cur="";
+        if(row.length>1||row[0]!=="")rows.push(row); row=[]; }
+      else cur+=c;
+    }
+  }
+  if(cur!==""||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+
+/* ---------- scoring / tier ---------- */
+function tierOf(r){
+  const eff=parseInt(r.effectif)||0;
+  const hasMail=(r.email||"").includes("@");
+  const q1905=(r.qualifications||"").includes("1905");
+  if(eff>100) return "⚪ Hors cible";
+  if(q1905&&hasMail&&eff>0&&eff<=20) return "🔥 Chaud";
+  if(q1905&&hasMail) return "🟠 Tiède";
+  if(hasMail) return "🟠 Tiède";
+  return "🔵 À qualifier";
+}
+const TIER_ORDER={"🔥 Chaud":0,"🟠 Tiède":1,"🔵 À qualifier":2,"⚪ Hors cible":3};
+
+/* ---------- chargement ---------- */
+function load(text){
+  const rows=parseCSV(text);
+  if(rows.length<2){alert("CSV vide ou illisible");return;}
+  const head=rows[0].map(h=>h.trim().toLowerCase());
+  DATA=rows.slice(1).map(cells=>{
+    const r={};head.forEach((h,i)=>r[h]=(cells[i]||"").trim());
+    r.departement=r.departement||String(r.code_postal||"").slice(0,2);
+    r.tier=tierOf(r);
+    return r;
+  }).filter(r=>r.nom);
+  buildFilters(); refresh();
+  $("stats").hidden=false;$("filterCard").hidden=false;
+  $("drop").querySelector("b").textContent="✓ "+DATA.length+" bureaux d'études chargés";
+}
+
+function buildFilters(){
+  const deps=[...new Set(DATA.map(r=>r.departement).filter(Boolean))].sort();
+  $("fDep").innerHTML='<option value="">Tous départements</option>'+deps.map(d=>`<option>${esc(d)}</option>`).join("");
+  const quals=[...new Set(DATA.flatMap(r=>(r.qualifications||"").split(";")).filter(Boolean))].sort();
+  $("fQual").innerHTML='<option value="">Toutes qualifs</option>'+quals.map(q=>`<option>${esc(q)}</option>`).join("");
+}
+
+/* ---------- filtres + rendu ---------- */
+function refresh(){
+  const q=$("q").value.toLowerCase(), dep=$("fDep").value, qual=$("fQual").value,
+        tier=$("fTier").value, needMail=$("fMail").checked;
+  VIEW=DATA.filter(r=>
+    (!q||[r.nom,r.ville,r.dirigeant,r.naf,r.email].join(" ").toLowerCase().includes(q))
+    &&(!dep||r.departement===dep)
+    &&(!qual||(r.qualifications||"").includes(qual))
+    &&(!tier||r.tier===tier)
+    &&(!needMail||(r.email||"").includes("@"))
+  );
+  VIEW.sort((a,b)=>{
+    let x=a[SORT.k]??"",y=b[SORT.k]??"";
+    if(SORT.k==="tier"){x=TIER_ORDER[a.tier];y=TIER_ORDER[b.tier];}
+    if(SORT.k==="effectif"){x=parseInt(x)||0;y=parseInt(y)||0;}
+    return (x<y?-1:x>y?1:0)*SORT.dir;
+  });
+  renderStats(); renderTable();
+}
+
+function renderStats(){
+  const m=DATA.filter(r=>(r.email||"").includes("@")).length;
+  $("sTot").textContent=DATA.length;
+  $("sMail").innerHTML=m+' <small>('+Math.round(100*m/Math.max(1,DATA.length))+'%)</small>';
+  $("sTel").textContent=DATA.filter(r=>(r.telephone||"").length>5).length;
+  $("sHot").textContent=DATA.filter(r=>r.tier==="🔥 Chaud").length;
+  $("sAura").textContent=DATA.filter(r=>AURA.has(r.departement)).length;
+  $("s69").textContent=DATA.filter(r=>r.departement==="69").length;
+}
+
+function renderTable(){
+  $("count").textContent=VIEW.length+" résultat(s) affiché(s)";
+  $("emptyMsg").hidden=VIEW.length>0;
+  $("tbody").innerHTML=VIEW.slice(0,800).map((r,i)=>`
+    <tr data-i="${i}" class="${SEL===r?'sel':''}">
+      <td class="tier">${esc(r.tier)}</td>
+      <td><b>${esc(r.nom)}</b></td>
+      <td>${esc(r.ville)}</td><td>${esc(r.departement)}</td>
+      <td>${esc((r.dirigeant||"").slice(0,40))}</td>
+      <td>${esc(r.effectif)}</td>
+      <td>${(r.qualifications||"").split(";").filter(Boolean).slice(0,4).map(q=>`<span class="pill ${q==="1905"?"q1905":""}">${esc(q)}</span>`).join("")}</td>
+      <td>${(r.email||"").includes("@")?"✉️":""}</td>
+    </tr>`).join("");
+}
+
+/* ---------- fiche + mail ---------- */
+function firstName(d){
+  const m=String(d||"").match(/(?:Monsieur|Madame|M\.|Mme)?\s*([A-ZÀ-Ü][A-ZÀ-Üa-zà-ü\-]+)\s+([A-ZÀ-Ü][a-zà-ü\-]+)/);
+  return m?m[2]:"";
+}
+function openFiche(r){
+  SEL=r; renderTable();
+  $("ficheZone").hidden=false;
+  const f=[["Dirigeant",r.dirigeant],["Email",r.email?`<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>`:""],
+    ["Téléphone",r.telephone],["Site",r.site?`<a href="${esc(/^https?:/.test(r.site)?r.site:"https://"+r.site)}" target="_blank" rel="noopener">${esc(r.site)}</a>`:""],
+    ["Adresse",[r.adresse,r.code_postal,r.ville].filter(Boolean).join(", ")],
+    ["SIRET",r.siret?`<a href="https://www.pappers.fr/recherche?q=${esc(r.siret)}" target="_blank" rel="noopener">${esc(r.siret)}</a>`:""],
+    ["NAF",r.naf],["Forme",r.forme_juridique],["Capital",r.capital],["Dernier CA",r.ca],
+    ["Effectif",r.effectif],["Assurances",r.assurances],
+    ["Qualifications",(r.qualifications||"").split(";").filter(Boolean).map(q=>`<span class="pill ${q==="1905"?"q1905":""}">${esc(q)}</span>`).join(" ")],
+    ["Fiche OPQIBI",r.url_fiche?`<a href="${esc(r.url_fiche)}" target="_blank" rel="noopener">ouvrir</a>`:""]];
+  $("fiche").innerHTML=`<h2>${esc(r.nom)}</h2><div class="sub">${esc(r.tier)} · ${esc(r.ville)} (${esc(r.departement)})</div>
+    <div class="grid2">${f.filter(x=>x[1]).map(x=>`<div class="fld"><div class="k">${x[0]}</div><div class="v">${x[1]}</div></div>`).join("")}</div>`;
+  const prenom=firstName(r.dirigeant), dep=r.departement||"votre département";
+  $("mSubj").value=`Prospects décret tertiaire (${dep}) - échéance OPERAT 30/09`;
+  $("mBody").value=
+`Bonjour${prenom?" "+prenom:""},
+
+Les entreprises assujetties au décret tertiaire de votre secteur sont difficiles à identifier : l'ADEME ne publie pas la liste des bâtiments +1000 m² concernés.
+
+Je la reconstitue par croisement de données publiques (surfaces bâtiments x SIRENE) : raison sociale, adresse du bâtiment, surface estimée, SIRET, contact. Autant de prospects qui doivent déclarer sur OPERAT avant le 30 septembre - et qui ont besoin d'un bureau d'études comme ${r.nom||"le vôtre"}.
+
+Je vous envoie un échantillon gratuit de 20 lignes du département ${dep} ?
+
+Bien cordialement,
+Romain
+
+--
+Vos coordonnées proviennent de l'annuaire public OPQIBI. Répondez STOP pour ne plus être contacté.`;
+  updMail(r);
+  $("ficheZone").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function updMail(r){
+  const to=(r.email||"").includes("@")?r.email:"";
+  $("mSend").href=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent($("mSubj").value)}&body=${encodeURIComponent($("mBody").value)}`;
+}
+
+/* ---------- export ---------- */
+function exportCSV(){
+  if(!VIEW.length){alert("Rien à exporter");return;}
+  const cols=["tier","nom","email","telephone","site","dirigeant","adresse","code_postal","ville","departement","siren","siret","naf","forme_juridique","capital","ca","effectif","assurances","qualifications","url_fiche"];
+  const csvCell=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const out=[cols.join(",")].concat(VIEW.map(r=>cols.map(c=>csvCell(r[c])).join(","))).join("\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob(["\ufeff"+out],{type:"text/csv;charset=utf-8"}));
+  a.download="selection_be.csv";a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ---------- events ---------- */
+$("file").addEventListener("change",e=>{const f=e.target.files[0];if(f)f.text().then(load);});
+const drop=$("drop");
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("on");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("on");}));
+drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)f.text().then(load);});
+["q","fDep","fQual","fTier","fMail"].forEach(id=>$(id).addEventListener("input",refresh));
+document.querySelector("thead").addEventListener("click",e=>{
+  const k=e.target.dataset.s;if(!k)return;
+  SORT.dir=SORT.k===k?-SORT.dir:1;SORT.k=k;refresh();
+});
+$("tbody").addEventListener("click",e=>{
+  const tr=e.target.closest("tr");if(!tr)return;openFiche(VIEW[+tr.dataset.i]);
+});
+$("exportBtn").addEventListener("click",exportCSV);
+$("mSubj").addEventListener("input",()=>SEL&&updMail(SEL));
+$("mBody").addEventListener("input",()=>SEL&&updMail(SEL));
+$("mCopy").addEventListener("click",()=>{
+  navigator.clipboard.writeText($("mBody").value).then(()=>{
+    $("toast").classList.add("on");setTimeout(()=>$("toast").classList.remove("on"),1400);
+  });
+});
+</script>
+</body>
+</html>
