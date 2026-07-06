@@ -1,0 +1,49 @@
+name: annuaire-be
+
+on:
+  workflow_dispatch:
+    inputs:
+      quals:
+        description: "Codes qualification OPQIBI (separes par espaces)"
+        default: "1905"
+        required: true
+      scan_ids:
+        description: "Fallback scan IDs 'START END' (laisser vide pour la recherche normale)"
+        default: ""
+        required: false
+  # decommente pour un refresh mensuel automatique (1er du mois, 6h UTC)
+  # schedule:
+  #   - cron: "0 6 1 * *"
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run scraper
+        run: |
+          if [ -n "${{ github.event.inputs.scan_ids }}" ]; then
+            python annuaire_be_v2.py --quals ${{ github.event.inputs.quals }} --scan-ids ${{ github.event.inputs.scan_ids }}
+          else
+            python annuaire_be_v2.py --quals ${{ github.event.inputs.quals }}
+          fi
+
+      - name: Upload CSVs
+        uses: actions/upload-artifact@v4
+        with:
+          name: base-be-${{ github.run_number }}
+          path: |
+            base_be_max_national.csv
+            base_be_max_aura.csv
+            base_be_max_69.csv
+          if-no-files-found: warn
+          retention-days: 90
