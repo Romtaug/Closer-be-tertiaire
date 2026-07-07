@@ -144,11 +144,28 @@ def parse_fiche(html, url):
     quals, statut_1905 = set(), ""
     for a in soup.select("a[href*='nomenclature-fiche/']"):
         code = a["href"].rsplit("/", 1)[-1]
+        # ne garder que les liens de tableau de qualifs (texte = le code lui-meme),
+        # pas les liens de menu/navigation
+        if a.get_text(strip=True) != code:
+            continue
         quals.add(code)
-        if code == "1905":
-            tbl = a.find_parent("table")
-            if tbl:
-                statut_1905 = "probatoire" if "probatoire" in tbl.get_text().lower() else "definitive"
+        if code == "1905" and not statut_1905:
+            # remonter les anciens parents jusqu'a trouver le bloc de section
+            # qui dit "probatoire" ou "attribuee" (le site n'utilise pas <table>)
+            node = a
+            for _ in range(6):
+                node = getattr(node, "parent", None)
+                if node is None:
+                    break
+                t = node.get_text(" ", strip=True).lower()
+                if len(t) > 2500:
+                    break
+                if "probatoire" in t:
+                    statut_1905 = "probatoire"
+                    break
+                if "attribu" in t:
+                    statut_1905 = "definitive"
+                    break
     d["qualifications"] = ";".join(sorted(quals))
     d["statut_1905"] = statut_1905
     d["siret"] = re.sub(r"\D", "", d.get("siret", ""))[:14]
