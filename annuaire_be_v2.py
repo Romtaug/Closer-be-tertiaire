@@ -68,33 +68,19 @@ def domaine_tertiaire(dom):
 # ================================================================ PULL ADEME
 
 def pull_ademe(session, dep=None):
-    """Recupere les lignes RGE 'Etudes energetiques' via l'API DataFair.
+    """Recupere les lignes RGE via l'API DataFair, pagination par curseur 'next'.
 
-    Pagination par CURSEUR 'next' (natif DataFair, pas de limite 10k comme page/size).
-    Filtre meta_domaine tente cote serveur (qs) ET re-applique cote client par securite.
+    Pas de filtre serveur (source de 0 resultat quand la syntaxe qs ne passe pas) :
+    on rapatrie et on filtre 100% cote client (meta_domaine + departement), fiable.
     """
     print("== Pull open data RGE ADEME ==", flush=True)
-    params = {
-        "size": 5000,
-        "select": "nom_entreprise,siret,adresse,code_postal,commune,"
-                  "telephone,email,site_internet,domaine,meta_domaine,organisme",
-        "qs": 'meta_domaine:"Etudes\\ energetiques"',
-    }
-    if dep:
-        params["qs"] = f'({params["qs"]}) AND code_postal:{dep}*'
-
+    params = {"size": 5000}
     rows, url, err_streak, page = [], ADEME_LINES, 0, 0
     first = True
     while url:
         try:
             r = session.get(url, params=params if first else None,
                             headers=HEADERS, timeout=90)
-            if r.status_code == 400 and ("qs" in params or "select" in params):
-                print("  (param non supporte -> pull sans filtre serveur, filtre client)", flush=True)
-                params.pop("qs", None); params.pop("select", None)
-                url, first = ADEME_LINES, True
-                rows = []
-                continue
             r.raise_for_status()
         except requests.RequestException as e:
             print(f"  ADEME erreur : {e}", flush=True)
@@ -114,7 +100,7 @@ def pull_ademe(session, dep=None):
         total = data.get("total")
         print(f"  page {page} : +{len(results)} (total {len(rows)}"
               + (f" / {total}" if total else "") + ")", flush=True)
-        url = data.get("next")   # curseur natif DataFair : URL complete de la suite
+        url = data.get("next")
         if not results or page >= 400:
             break
         time.sleep(0.15)
