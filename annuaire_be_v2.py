@@ -308,6 +308,11 @@ def tier_row(r):
 
 # ================================================================ EXCEL
 
+_ILLEGAL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F]")  # caracteres de controle interdits par Excel
+
+def _clean(v):
+    return _ILLEGAL.sub("", str(v if v is not None else ""))
+
 def build_excel(df, path):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -346,7 +351,7 @@ def build_excel(df, path):
         for i, (_, r) in enumerate(data.iterrows(), 2):
             f = TIER_FILL.get(r["tier"])
             for j, (k, _, _) in enumerate(cols, 1):
-                c = ws.cell(i, j, str(r.get(k, ""))); c.font, c.border = BODY, thin
+                c = ws.cell(i, j, _clean(r.get(k, ""))); c.font, c.border = BODY, thin
                 if f: c.fill = f
         ws.freeze_panes = "C2"
         ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{max(2, len(data)+1)}"
@@ -423,10 +428,14 @@ def main():
     df["rk"] = df["tier"].map({t: i for i, t in enumerate(TIER_ORDER)})
     df = df.sort_values(["rk", "score"], ascending=[True, False]).drop(columns="rk")
 
-    build_excel(df, out / "base_be_tertiaire.xlsx")
+    # les CSV d'abord (rapides, surs), l'Excel ensuite (blinde)
     df.to_csv(out / "base_be_max_national.csv", index=False, quoting=csv.QUOTE_MINIMAL)
     df[df["departement"].isin(DEPS_AURA)].to_csv(out / "base_be_max_aura.csv", index=False)
     df[df["departement"] == "69"].to_csv(out / "base_be_max_69.csv", index=False)
+    try:
+        build_excel(df, out / "base_be_tertiaire.xlsx")
+    except Exception as e:
+        print(f"  Excel non genere ({e}), les CSV sont disponibles.", flush=True)
 
     summary = {
         "total": len(df),
