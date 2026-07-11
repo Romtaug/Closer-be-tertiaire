@@ -378,54 +378,92 @@ def build_excel(df, path):
 
 # ================================================================ MAIN
 
+def _need_enrich(df):
+    """Marque les lignes pas encore enrichies (colonne 'enrichi' != '1')."""
+    if "enrichi" not in df.columns:
+        df["enrichi"] = ""
+    return df["enrichi"].astype(str) != "1"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dep", help="limiter a un departement (ex: 69)")
-    ap.add_argument("--from-csv", help="reprendre un CSV, sauter le pull ADEME")
+    ap.add_argument("--from-csv", help="reprendre un CSV existant (sauter le pull ADEME)")
     ap.add_argument("--skip-enrich", action="store_true")
+    ap.add_argument("--lot", type=int, default=1500,
+                    help="nombre de BE a enrichir par execution (reprise sur plusieurs runs)")
+    ap.add_argument("--max-minutes", type=float, default=100,
+                    help="arret propre avant cette duree (timeout GitHub = 120 min)")
     args = ap.parse_args()
 
+    t0 = time.time()
     session = requests.Session()
+    out = Path(".")
+    cache = out / "base_be_max_national.csv"
 
-    if args.from_csv:
+    # 1) Charger : reprise du cache si present, sinon pull ADEME
+    if args.from_csv and Path(args.from_csv).exists():
         df = pd.read_csv(args.from_csv, dtype=str).fillna("")
-        print(f"CSV repris : {len(df)} lignes")
+        print(f"CSV repris (--from-csv) : {len(df)} lignes", flush=True)
+    elif cache.exists() and not args.dep:
+        df = pd.read_csv(cache, dtype=str).fillna("")
+        print(f"Cache repris ({cache.name}) : {len(df)} lignes -> on continue l'enrichissement", flush=True)
     else:
         df = pull_ademe(session, dep=args.dep)
         if df.empty:
             return
 
     for col in ("email", "site", "siren", "email_source", "etat_sirene",
-                "procedure_collective", "dirigeant", "tranche_effectif", "domaines_rge"):
+                "procedure_collective", "dirigeant", "tranche_effectif",
+                "domaines_rge", "enrichi"):
         if col not in df.columns:
             df[col] = ""
     df["departement"] = df["code_postal"].astype(str).str[:2]
 
-    out = Path(".")
-    if not args.skip_enrich:
-        df = enrich_sirene(session, df)
-        df = enrich_bodacc(session, df)
-        # sauvegarde de secours AVANT le scraping des sites (etape la plus fragile) :
-        # si un site fait planter, on garde deja la base enrichie SIRENE + BODACC.
-        try:
-            df.to_csv(out / "base_be_max_national.csv", index=False, quoting=csv.QUOTE_MINIMAL)
-            print("  [secours] base intermediaire sauvegardee (avant emails sites)", flush=True)
-        except Exception as e:
-            print(f"  [secours] echec sauvegarde intermediaire : {e}", flush=True)
-        # l'enrichissement emails ne doit JAMAIS faire planter le run
-        try:
-            df = enrich_emails_sites(session, df)
-        except Exception as e:
-            print(f"  enrichissement emails interrompu ({e}), on continue sans.", flush=True)
+    # sauvegarde immediate du socle (avant tout enrichissement) pour ne jamais repartir de zero
+    df.to_csv(cache, index=False, quoting=csv.QUOTE_MINIMAL)
 
+    if not args.skip_enrich:
+        mask = _need_enrich(df)
+        reste = int(mask.sum())
+        print(f"== Enrichissement par lots : {reste} BE a traiter, lot={args.lot} ==", flush=True)
+        if reste == 0:
+            print("  tout est deja enrichi, on passe au scoring/export.", flush=True)
+        else:
+            # on prend le prochain lot
+            idx_lot = df[mask].head(args.lot).index
+            sub = df.loc[idx_lot].copy()
+            print(f"  lot courant : {len(sub)} BE", flush=True)
+
+            sub = enrich_sirene(session, sub)
+            if time.time() - t0 < args.max_minutes * 60:
+                sub = enrich_bodacc(session, sub)
+            else:
+                print("  (temps limite atteint apres SIRENE, BODACC au prochain run)", flush=True)
+            try:
+                sub = enrich_emails_sites(session, sub)
+            except Exception as e:
+                print(f"  emails interrompus ({e})", flush=True)
+
+            sub["enrichi"] = "1"
+            for c in ("etat_sirene", "tranche_effectif", "dirigeant",
+                      "procedure_collective", "email", "email_source", "enrichi"):
+                df.loc[idx_lot, c] = sub[c]
+
+            df.to_csv(cache, index=False, quoting=csv.QUOTE_MINIMAL)
+            done = int((df["enrichi"].astype(str) == "1").sum())
+            print(f"  [sauvegarde] {done}/{len(df)} BE enrichis au total", flush=True)
+            if done < len(df):
+                print(f"  >>> Il reste {len(df)-done} BE. RELANCE le workflow pour continuer.", flush=True)
+
+    # 2) Scoring + export (sur tout ce qu'on a, enrichi ou non)
     sc = df.apply(score_row, axis=1, result_type="expand")
     df["score"], df["score_detail"], df["effectif_num"] = sc[0], sc[1], sc[2]
     df["tier"] = df.apply(tier_row, axis=1)
     df["rk"] = df["tier"].map({t: i for i, t in enumerate(TIER_ORDER)})
     df = df.sort_values(["rk", "score"], ascending=[True, False]).drop(columns="rk")
 
-    # les CSV d'abord (rapides, surs), l'Excel ensuite (blinde)
-    df.to_csv(out / "base_be_max_national.csv", index=False, quoting=csv.QUOTE_MINIMAL)
+    df.to_csv(cache, index=False, quoting=csv.QUOTE_MINIMAL)
     df[df["departement"].isin(DEPS_AURA)].to_csv(out / "base_be_max_aura.csv", index=False)
     df[df["departement"] == "69"].to_csv(out / "base_be_max_69.csv", index=False)
     try:
@@ -433,8 +471,11 @@ def main():
     except Exception as e:
         print(f"  Excel non genere ({e}), les CSV sont disponibles.", flush=True)
 
+    enrichi = int((df["enrichi"].astype(str) == "1").sum())
     summary = {
         "total": len(df),
+        "enrichi": enrichi,
+        "reste_a_enrichir": len(df) - enrichi,
         "avec_email": int(df["email"].astype(str).str.contains("@").sum()),
         "avec_tel": int((df["telephone"].astype(str).str.len() > 5).sum()),
         "aura": int(df["departement"].isin(DEPS_AURA).sum()),
@@ -444,7 +485,10 @@ def main():
     (out / "run_summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print("\n== RESULTATS ==")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
-    print("\nFichiers : base_be_tertiaire.xlsx + 3 CSV + run_summary.json")
+    if summary["reste_a_enrichir"] > 0:
+        print(f"\n>>> {summary['reste_a_enrichir']} BE restants : relance le workflow pour continuer l'enrichissement.")
+    else:
+        print("\nEnrichissement COMPLET. Base nationale prete.")
 
 
 if __name__ == "__main__":
