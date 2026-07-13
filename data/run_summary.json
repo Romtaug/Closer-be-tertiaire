@@ -1,17 +1,17 @@
 {
   "total": 4848,
-  "enrichi": 4500,
-  "reste_a_enrichir": 348,
-  "avec_email": 4515,
+  "enrichi": 4848,
+  "reste_a_enrichir": 0,
+  "avec_email": 4547,
   "avec_tel": 3877,
   "aura": 723,
   "dep_69": 282,
   "tiers": {
-    "CHAUD": 2440,
-    "TIEDE": 2007,
-    "A QUALIFIER": 211,
+    "CHAUD": 2453,
+    "TIEDE": 2020,
+    "A QUALIFIER": 181,
     "HORS CIBLE": 108,
-    "EN DIFFICULTE": 78,
+    "EN DIFFICULTE": 82,
     "FERMEE": 4
   }
 }
